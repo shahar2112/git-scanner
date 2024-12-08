@@ -1,0 +1,40 @@
+{
+  "name": "git-scanner",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec tsx src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/server": "^4.11.2",
+    "@octokit/core": "^6.1.2",
+    "@octokit/graphql": "^8.1.1",
+    "@octokit/rest": "^21.0.2",
+    "dotenv": "^16.4.7",
+    "graphql": "^16.9.0",
+    "graphql-tag": "^2.12.6",
+    "p-limit": "^6.1.0",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/async-retry": "^1.4.9",
+    "@types/negotiator": "^0.6.3",
+    "@types/node": "^22.10.1",
+    "@types/uuid": "^10.0.0",
+    "@types/whatwg-mimetype": "^3.0.2",
+    "nodemon": "^3.1.7",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
