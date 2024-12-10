@@ -1,5 +1,5 @@
-import { Scanner } from '../scanners/scanner';
-import { GitHubScanner } from '../scanners/gitHubScanner';
+import { RepositoryScanner } from '../scanners/repositoryScanner.js';
+import { GitHubScanner } from '../scanners/gitHubScanner.js';
 
 export class ScannerFactory {
     /**
@@ -7,7 +7,7 @@ export class ScannerFactory {
      * @param {string} scannerType - The type of scanner (e.g., 'github')
      * @returns {Scanner} - The appropriate scanner instance
      */
-    static createScanner(scannerType: string, token: string): Scanner {
+    static createScanner(scannerType: string, token: string): RepositoryScanner {
         switch (scannerType.toLowerCase()) {
             case 'github':
                 return new GitHubScanner(token);

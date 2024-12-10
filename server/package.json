@@ -19,6 +19,7 @@
     "@octokit/core": "^6.1.2",
     "@octokit/graphql": "^8.1.1",
     "@octokit/rest": "^21.0.2",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "graphql": "^16.9.0",
     "graphql-tag": "^2.12.6",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@types/async-retry": "^1.4.9",
+    "@types/cors": "^2.8.17",
     "@types/negotiator": "^0.6.3",
     "@types/node": "^22.10.1",
     "@types/uuid": "^10.0.0",

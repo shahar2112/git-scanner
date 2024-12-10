@@ -1,22 +1,29 @@
-import { ScannerFactory } from '../services/scannerFactory';
+import { ScannerFactory } from '../services/scannerFactory.js';
+import { ErrorUtils } from '../utils/errorUtils.js';
 const repoResolvers = {
     Query: {
         listRepositories: async (_, __, { scannerType, token }) => {
+            const scanner = ScannerFactory.createScanner(scannerType, token);
             try {
-                const scanner = ScannerFactory.createScanner(scannerType, token);
-                return await scanner.fetchData();
+                return await scanner.fetchRepositoryData();
             }
             catch (error) {
-                throw new Error(`Error fetching repositories: ${error}`);
+                const result = await ErrorUtils.retryRequest(error, 0, async () => await scanner.fetchRepositoryData());
+                if (result !== undefined) {
+                    return result;
+                }
             }
         },
-        getRepositoryDetails: async (_, { repoNames }, { scannerType, token }) => {
+        getRepositoryDetails: async (_, { repoName }, { scannerType, token }) => {
+            const scanner = ScannerFactory.createScanner(scannerType, token);
             try {
-                const scanner = ScannerFactory.createScanner(scannerType, token);
-                return await scanner.fetchDetails(repoNames);
+                return await scanner.fetchRepositoryDetails(repoName);
             }
             catch (error) {
-                throw new Error(`Error fetching repository details: ${error}`);
+                const result = await ErrorUtils.retryRequest(error, 0, async () => await scanner.fetchRepositoryDetails(repoName));
+                if (result !== undefined) {
+                    return result;
+                }
             }
         },
     },

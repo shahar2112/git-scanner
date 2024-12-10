@@ -1,4 +1,4 @@
-import { GitHubScanner } from '../scanners/gitHubScanner';
+import { GitHubScanner } from '../scanners/gitHubScanner.js';
 export class ScannerFactory {
     /**
      * Create a scanner based on the type.

@@ -33,6 +33,6 @@ export const typeDefs = gql`
 
     type Query {
         listRepositories: [Repository!]!
-        getRepositoryDetails(repoNames: [String]!, branchName:String): RepositoryDetails
+        getRepositoryDetails(repoName: String!, branchName:String): RepositoryDetails
     }
 `;

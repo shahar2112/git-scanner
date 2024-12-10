@@ -1,20 +1,27 @@
 import { graphql } from '@octokit/graphql';
 import { Octokit } from "@octokit/rest";
-import { ErrorUtils } from "../utils/errorUtils";
-import { FILE_CONTENT_QUERY, LIST_REPOSITORIES_QUERY, REPOSITORY_METADATA_QUERY, REPOSITORY_TREE_QUERY } from "../queries/gitHubQueries";
-import { CONFIG } from '../configs/scannerConfig';
+import { ErrorUtils } from "../utils/errorUtils.js";
+import { FILE_CONTENT_QUERY, LIST_REPOSITORIES_QUERY, REPOSITORY_METADATA_QUERY, REPOSITORY_TREE_QUERY } from "../queries/gitHubQueries.js";
+import { CONFIG, ERROR_CODES, ERROR_MESSAGES } from '../configs/scannerConfig.js';
+import { ApiUtils } from '../utils/apiUtils.js';
+/**
+ * Service class for handling repository operations.
+ */
 export class GitHubService {
     client;
     token;
+    static BLOB = 'blob';
+    static TREE = 'tree';
+    static YAML_EXTENSIONS = ['.yml', '.yaml'];
     constructor(token) {
         this.token = token;
         this.client = new Octokit({ auth: token });
     }
     /**
-     * Fetch list of repositories for authenticated user.
+     * Fetch list of repositories with pagination.
      */
     async fetchRepositories() {
-        const token = `token ${this.token}`;
+        const token = ApiUtils.getAuthHeader(this.token);
         const paginationSize = CONFIG.PAGE_SIZE;
         let after = null;
         let results = [];
@@ -36,62 +43,55 @@ export class GitHubService {
             return results;
         }
         catch (error) {
-            ErrorUtils.handleError(error, "Error fetching repositories from GitHub.");
-            return [];
+            throw ErrorUtils.createGraphQLError(ERROR_MESSAGES.FETCHING_REPOSITORIES_FAILED_MSG, ERROR_CODES.FETCH_REPOSITORIES_FAILED, 500, error);
         }
     }
     /**
-     * Fetch details of a specific repository.
-     */
+    * Fetch details of a specific repository.
+    */
     async fetchRepositoryDetails(repoName, branchName = CONFIG.DEFAULT_BRANCH) {
-        const token = `token ${this.token}`;
         const branchPrefix = `${branchName}:`;
-        const queue = ['.github/']; // Start with the root directory TODO:CHANGE THIS
-        let fileCount = 0;
-        let isYamlFound = false;
-        let ymlContent = null;
+        const repoTreeResult = { fileCount: 0, ymlContent: null };
         const metadata = await this.fetchMetadata(repoName);
-        while (queue.length > 0) {
-            const currentPath = queue.shift();
-            const branchWithPath = `${branchPrefix}${currentPath}`;
-            try {
-                const response = await graphql(REPOSITORY_TREE_QUERY, {
-                    repoName,
-                    branchName: branchWithPath,
-                    headers: { authorization: token },
-                });
-                const repositoryObject = response.viewer.repository?.object;
-                if (!repositoryObject || !repositoryObject.entries)
-                    continue;
-                for (const entry of repositoryObject.entries) {
-                    if (entry.type === 'blob') {
-                        fileCount++;
-                        if (!isYamlFound && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) { //TODO: move to ,ethod
-                            ymlContent = await this.getFileContent(repoName, branchWithPath, entry.name);
-                            isYamlFound = true;
-                        }
-                    }
-                    else if (entry.type === 'tree') {
-                        queue.push(`${currentPath}${entry.name}/`);
-                    }
-                }
-            }
-            catch (error) {
-                console.error(`Error fetching repository details for path: ${branchWithPath}`, error);
-                throw new Error(`Failed to fetch repository details.` + error);
-            }
-        }
-        const webhooks = await this.getWebhooks(metadata.owner, repoName);
+        const [webhooksResult, repositoryDetails] = await Promise.all([
+            this.getWebhooks(metadata.owner, repoName),
+            this.processRepositoryTree(repoName, branchPrefix, repoTreeResult)
+        ]);
         return {
             ...metadata,
-            numberOfFiles: fileCount,
-            ymlContent: ymlContent,
-            webhooks: webhooks,
+            numberOfFiles: repositoryDetails.fileCount,
+            ymlContent: repositoryDetails.ymlContent !== null ? repositoryDetails.ymlContent : undefined,
+            webhooks: webhooksResult,
+        };
+    }
+    async processRepositoryTree(repoName, branchPrefix, repoTreeResult) {
+        const branchWithPath = `${branchPrefix}`;
+        const repositoryObject = await this.fetchRepositoryTree(repoName, branchWithPath);
+        if (!repositoryObject || !repositoryObject.entries) {
+            return { fileCount: 0, ymlContent: null };
+        }
+        const subdirectoryPromises = [];
+        for (const entry of repositoryObject.entries) {
+            if (entry.type === GitHubService.BLOB) {
+                repoTreeResult.fileCount++;
+                if (!repoTreeResult.ymlContent && GitHubService.YAML_EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
+                    repoTreeResult.ymlContent = await this.getFileContent(repoName, branchWithPath, entry.name);
+                }
+            }
+            else if (entry.type === GitHubService.TREE) {
+                subdirectoryPromises.push(this.processRepositoryTree(repoName, `${branchWithPath}${entry.name}/`, repoTreeResult));
+            }
+        }
+        // Recursively process subdirectories concurrently
+        const subdirectoryResults = await Promise.all(subdirectoryPromises);
+        return {
+            fileCount: repoTreeResult.fileCount + subdirectoryResults.reduce((sum, result) => sum + result.fileCount, 0),
+            ymlContent: repoTreeResult.ymlContent || subdirectoryResults.find(r => r.ymlContent)?.ymlContent || null
         };
     }
     async fetchMetadata(repoName) {
+        const token = ApiUtils.getAuthHeader(this.token);
         try {
-            const token = `token ${this.token}`;
             const response = await graphql(REPOSITORY_METADATA_QUERY, {
                 repoName,
                 headers: { authorization: token },
@@ -104,18 +104,21 @@ export class GitHubService {
             };
         }
         catch (error) {
-            throw new Error(`Failed to fetch repository metadata.` + error);
+            throw ErrorUtils.createGraphQLError(ERROR_MESSAGES.FETCH_METADATA_FAILED_MSG, ERROR_CODES.FETCH_METADATA_FAILED, 500, error);
         }
     }
-    /**
-     * Extract base details common to all repository responses.
-     */
-    extractBaseDetails(repo) {
-        return {
-            name: repo.name,
-            size: repo.diskUsage,
-            owner: repo.owner.login,
-        };
+    async fetchRepositoryTree(repoName, branchWithPath) {
+        try {
+            const response = await graphql(REPOSITORY_TREE_QUERY, {
+                repoName,
+                branchName: branchWithPath,
+                headers: { authorization: ApiUtils.getAuthHeader(this.token) },
+            });
+            return response.viewer.repository?.object || null;
+        }
+        catch (error) {
+            throw ErrorUtils.createGraphQLError(ERROR_MESSAGES.FETCH_REPO_ENTRIES_FAILED_MSG, ERROR_CODES.FETCH_ENTRIES_FAILED, 500, error);
+        }
     }
     async getWebhooks(owner, repo) {
         try {
@@ -126,19 +129,14 @@ export class GitHubService {
             if (!response.data || response.data.length === 0) {
                 return [];
             }
-            const webhooks = response.data;
-            return webhooks;
+            return response.data;
         }
         catch (error) {
-            console.error('Error fetching webhooks:', error);
-            return [];
+            throw ErrorUtils.createGraphQLError(ERROR_MESSAGES.FETCH_WEBHOOKS_FAILED_MSG, ERROR_CODES.FETCH_WEBHOOKS_FAILED, 500, error);
         }
     }
-    /**
-   * Get file content from a repository
-   */
     async getFileContent(repoName, branchWithPath, fileName) {
-        const token = `token ${this.token}`;
+        const token = ApiUtils.getAuthHeader(this.token);
         const fileExpression = `${branchWithPath}${fileName}`;
         try {
             const response = await graphql(FILE_CONTENT_QUERY, {
@@ -146,13 +144,18 @@ export class GitHubService {
                 fileExpression,
                 headers: { authorization: token },
             });
-            console.log('response', response);
             return response.viewer.repository?.object?.text || '';
         }
         catch (error) {
-            ErrorUtils.handleError(error, `Error fetching file content for ${fileExpression}`);
-            return '';
+            throw ErrorUtils.createGraphQLError(ERROR_MESSAGES.FETCH_FILE_FAILED_MSG.replace('{expression}', fileExpression), ERROR_CODES.FETCH_FILE_FAILED, 500, error);
         }
+    }
+    extractBaseDetails(repo) {
+        return {
+            name: repo.name,
+            size: repo.diskUsage,
+            owner: repo.owner.login,
+        };
     }
 }
 ;

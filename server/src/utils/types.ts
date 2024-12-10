@@ -31,6 +31,21 @@ export type ListRepositoriesResponse = {
 export type RepositoryObject = {
     entries: [{
         name: string;
-        type: 'blob' | 'tree';
+        type: string;
     }];
+}
+
+export type RepositoryTreeResult = {
+    fileCount: number;
+    ymlContent: string | null;
+}
+
+export type RepositoryDetails = {
+    name: String
+    size: number
+    owner: String
+    isPrivate: Boolean
+    numberOfFiles: number
+    ymlContent?: String
+    webhooks: Webhook[]
 }

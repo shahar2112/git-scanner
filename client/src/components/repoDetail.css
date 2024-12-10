@@ -1,0 +1,54 @@
+.repo-detail {
+    background-color: #f6eefa;
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-family: 'Roboto', sans-serif;
+}
+.repo-detail h2 {
+    color:#6d18aa;
+    font-size: 20px;
+    margin-bottom: 15px;
+}
+.repo-detail ul {
+    color:#333;
+    list-style-type: none;
+    padding: 0;
+}
+.repo-detail li {
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.repo-detail strong {
+    color: #6d18aa;
+}
+
+.error {
+    color: red;
+    font-size: 14px;
+}
+
+.no-repo {
+    font-style: italic;
+    color: #666;
+}
+
+.webhooks-list {
+    margin-left: 20px;
+}
+.webhook-item {
+    margin-bottom: 10px;
+}
+.webhook-details {
+    margin-left: 20px;
+}
+
+.loader {
+    text-align: center;
+    margin: 20px 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+

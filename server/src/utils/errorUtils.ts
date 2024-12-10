@@ -1,17 +1,32 @@
-import { CONFIG } from "../configs/scannerConfig";
+import { GraphQLError } from "graphql";
+import { ERROR_CODES, ERROR_CONFIG, ERROR_MESSAGES } from "../configs/scannerConfig.js";
 
+/**
+ * Utility class for Error-related operations.
+ */
 export class ErrorUtils {
-    static MAX_RETRIES = 3;
-    static RETRY_DELAY_MS = 1000;
-    static RATE_LIMIT_MESSAGE = 'Rate limit exceeded';
 
-    static handleError(error: unknown, contextMessage: string): void {
+    static createGraphQLError(message: string, code: string, status: number, originalError?: unknown) {
+        const originalMessage =
+        originalError instanceof Error ? originalError.message : String(originalError);
+        const combinedMessage = `${message}${originalMessage ? `: ${originalMessage}` : ''}`;
+       
+        const error = new GraphQLError(combinedMessage, {
+            extensions: {
+            code,
+            http: { status }
+            }
+        });
+        
+        return error;
+    }
+
+    static logError(error: unknown, contextMessage?: string): void {
         console.error(`[Error]: ${contextMessage}`);
         if (error instanceof Error) {
             console.error(`[Message]: ${error.message}`);
             console.error(`[Stack]: ${error.stack}`);
         }
-        throw error;
     }
 
     /**
@@ -20,13 +35,14 @@ export class ErrorUtils {
      * @param callback - The callback function to execute.
      */
     static async retryRequest(error: unknown, attempt: number, callback: () => Promise<any>): Promise<any> {
-        if (attempt < this.MAX_RETRIES && error instanceof Error) {
+        this.logError(error);
+        if (attempt < ERROR_CONFIG.MAX_RETRIES && error instanceof Error) {
             let interval;
             if (this.isRateLimitError(error)) {
-                interval = CONFIG.RATE_LIMIT_INTERVAL;
+                interval = ERROR_CONFIG.RATE_LIMIT_INTERVAL;
                 console.log(`Rate limit exceeded, waiting for ${interval} ms before retrying.`);
             } else if (this.isNetworkError(error)) {
-                interval = CONFIG.NETWORK_ERROR_INTERVAL;
+                interval = ERROR_CONFIG.NETWORK_ERROR_INTERVAL;
                 console.log(`Network error, waiting for ${interval} ms before retrying.`);
             }else{
                 throw error;
@@ -43,11 +59,11 @@ export class ErrorUtils {
     }
 
     private static isRateLimitError(error: Error): boolean {
-        return error.message.includes(this.RATE_LIMIT_MESSAGE) || 
+        return error.message.toLowerCase().includes(ERROR_MESSAGES.RATE_LIMIT_EXCEEDED) || 
         (error as any).response?.status === 403;
     }
     
     private static isNetworkError(error: Error): boolean {
-        return error.message.includes('ECONNRESET') || error.message.includes('ECONNABORTED');
+        return error.message.includes(ERROR_CODES.ECONNRESET) || error.message.includes(ERROR_CODES.ECONNABORTED);
     }
 };

@@ -1,41 +1,30 @@
-import { GitHubService } from '../services/gitHubService';
+import { GitHubService } from '../services/gitHubService.js';
 import pLimit from 'p-limit';
-import { CONFIG } from '../configs/scannerConfig';
-import { ErrorUtils } from '../utils/errorUtils';
+import { CONFIG } from '../configs/scannerConfig.js';
+/**
+ * Implements the Scanner interface to interact with GitHub API.
+ * Manages rate-limited API requests using p-limit.
+ */
 export class GitHubScanner {
+    limit = pLimit(CONFIG.LIMIT_SIZE);
     gitHubService;
     constructor(token) {
         this.gitHubService = new GitHubService(token);
     }
     /**
      * Fetch basic repository data.
-     * @returns {Promise<any[]>} - List of repository base details.
+     * @returns {Promise<RepositoryInfo[]>} - List of repository base details.
     */
-    async fetchData() {
-        try {
-            const repos = await this.gitHubService.fetchRepositories();
-            return repos;
-        }
-        catch (error) {
-            console.error('Error fetching repository data:', error);
-            return ErrorUtils.retryRequest(error, 0, () => this.fetchData());
-        }
+    async fetchRepositoryData() {
+        const repos = await this.gitHubService.fetchRepositories();
+        return repos;
     }
     /**
     * Fetch repository details.
-    * @param {String} repoNames - Names of the repositories.
-    * @returns {Promise<any>} - Repository details.
+    * @param {String} repoName - Name of the repository.
+    * @returns {Promise<RepositoryDetails>} - Repository details.
     */
-    async fetchDetails(repoNames) {
-        const limit = pLimit(CONFIG.LIMIT_SIZE);
-        try {
-            const repoDetailsPromises = repoNames.map(repoName => limit(() => this.gitHubService.fetchRepositoryDetails(repoName)));
-            const repoDetails = await Promise.all(repoDetailsPromises);
-            console.debug('repoDetails---------', repoDetails);
-            return repoDetails;
-        }
-        catch (error) {
-            return ErrorUtils.retryRequest(error, 0, () => this.fetchDetails(repoNames));
-        }
+    async fetchRepositoryDetails(repoName) {
+        return this.limit(() => this.gitHubService.fetchRepositoryDetails(repoName));
     }
 }

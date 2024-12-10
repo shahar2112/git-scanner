@@ -1,55 +1,37 @@
+import express from 'express';
 import { ApolloServer } from '@apollo/server';
-import { startStandaloneServer } from '@apollo/server/standalone';
-import { GraphQLError } from 'graphql';
-import { typeDefs } from './typeDefs/typeDefs';
-import repoResolvers from './resolvers/repoResolver';
-import { ErrorUtils } from './utils/errorUtils';
-import { CONFIG } from './configs/scannerConfig';
-import * as dotenv from 'dotenv';
+import { expressMiddleware } from '@apollo/server/express4';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { CONFIG, ERROR_MESSAGES } from './configs/scannerConfig.js';
+import { typeDefs } from './typeDefs/typeDefs.js';
+import repoResolvers from './resolvers/repoResolver.js';
+import { ApiUtils } from './utils/apiUtils.js';
+import { ErrorUtils } from './utils/errorUtils.js';
 dotenv.config();
-const server = new ApolloServer({
-    typeDefs,
-    resolvers: repoResolvers,
-});
 async function startServer() {
     try {
-        const scannerType = process.env.SCANNER_TYPE || CONFIG.DEFAULT_SCANNER; //TODO: MOVE TO UTILS METHOD
-        try {
-            const { url } = await startStandaloneServer(server, {
-                listen: { port: 4000 }, //TODO: GET PORT FROM UTILS??
-                context: async () => {
-                    const token = process.env[`${scannerType.toUpperCase()}_TOKEN`]; //TODO: MOVE TO UTILS METHOD
-                    if (!token) {
-                        throw new GraphQLError('No authentication token provided', {
-                            extensions: {
-                                code: 'UNAUTHENTICATED',
-                                http: { status: 401 }
-                            }
-                        });
-                    }
-                    return { scannerType, token };
-                }
-            });
-            console.log(`🚀 Server ready at: ${url}`);
-        }
-        catch (error) {
-            ErrorUtils.handleError(error, 'Failed to start the Apollo server');
-            process.exit(1);
-        }
+        const app = express();
+        const scannerType = CONFIG.DEFAULT_SCANNER;
+        const server = new ApolloServer({
+            typeDefs,
+            resolvers: repoResolvers,
+        });
+        await server.start();
+        app.use('/graphql', cors(), express.json(), expressMiddleware(server, {
+            context: async () => {
+                const token = process.env[`${scannerType.toUpperCase()}_TOKEN`];
+                ApiUtils.validateToken(token);
+                return { scannerType, token };
+            }
+        }));
+        app.listen(CONFIG.PORT, () => {
+            console.log(`🚀 Server ready at http://localhost:${CONFIG.PORT}/graphql`);
+        });
     }
     catch (error) {
-        ErrorUtils.handleError(error, 'Process failed');
+        ErrorUtils.logError(error, ERROR_MESSAGES.SERVER_START_FAIL);
         process.exit(1);
     }
 }
-// function extractTokenFromHeader(authorizationHeader: string | undefined): string {
-//   if (!authorizationHeader) {
-//     throw new Error('Authorization header is missing');
-//   }
-//   const token = authorizationHeader.replace('Bearer ', '');
-//   if (!token) {
-//       throw new Error('Token is missing in the authorization header');
-//   }
-//   return token;
-// }
 startServer();
