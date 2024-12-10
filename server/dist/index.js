@@ -28,7 +28,7 @@ const configureAppMiddlewares = (app, server) => {
 };
 const startExpressServer = (app) => {
     app.listen(CONFIG.PORT, () => {
-        console.log(`🚀 Server ready at http://localhost:${CONFIG.PORT}/graphql`);
+        console.log(`🚀 Server ready at http://localhost:${CONFIG.PORT}/${CONFIG.GRAPHQL_ENDPOINT}`);
     });
 };
 async function startServer() {

@@ -1,1 +1,1 @@
-export const GRAPHQL_URI = "http://localhost:4000/graphql";
+export const GRAPHQL_URI = "http://localhost:4000/scanner";

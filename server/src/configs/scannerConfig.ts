@@ -4,7 +4,7 @@ export const CONFIG = {
     DEFAULT_BRANCH: 'master',
     LIMIT_SIZE: 2,
     PORT: Number(process.env.PORT) || 4000,
-    GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT || '/graphql'
+    GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT || '/scanner'
 };
 
 export const ERROR_CONFIG = {
