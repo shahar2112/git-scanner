@@ -9,25 +9,35 @@ import repoResolvers from './resolvers/repoResolver.js';
 import { ApiUtils } from './utils/apiUtils.js';
 import { ErrorUtils } from './utils/errorUtils.js';
 dotenv.config();
+const createApolloServer = () => {
+    return new ApolloServer({
+        typeDefs,
+        resolvers: repoResolvers,
+    });
+};
+const configureAppMiddlewares = (app, server) => {
+    app.use(cors());
+    app.use(express.json());
+    app.use(CONFIG.GRAPHQL_ENDPOINT, expressMiddleware(server, {
+        context: async () => {
+            const token = process.env[`${CONFIG.DEFAULT_SCANNER.toUpperCase()}_TOKEN`];
+            ApiUtils.validateToken(token);
+            return { scannerType: CONFIG.DEFAULT_SCANNER, token };
+        }
+    }));
+};
+const startExpressServer = (app) => {
+    app.listen(CONFIG.PORT, () => {
+        console.log(`🚀 Server ready at http://localhost:${CONFIG.PORT}/graphql`);
+    });
+};
 async function startServer() {
     try {
         const app = express();
-        const scannerType = CONFIG.DEFAULT_SCANNER;
-        const server = new ApolloServer({
-            typeDefs,
-            resolvers: repoResolvers,
-        });
+        const server = createApolloServer();
         await server.start();
-        app.use('/graphql', cors(), express.json(), expressMiddleware(server, {
-            context: async () => {
-                const token = process.env[`${scannerType.toUpperCase()}_TOKEN`];
-                ApiUtils.validateToken(token);
-                return { scannerType, token };
-            }
-        }));
-        app.listen(CONFIG.PORT, () => {
-            console.log(`🚀 Server ready at http://localhost:${CONFIG.PORT}/graphql`);
-        });
+        configureAppMiddlewares(app, server);
+        startExpressServer(app);
     }
     catch (error) {
         ErrorUtils.logError(error, ERROR_MESSAGES.SERVER_START_FAIL);
