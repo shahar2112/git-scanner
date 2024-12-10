@@ -22,7 +22,7 @@ const configureAppMiddlewares = (app: Express, server: ApolloServer) => {
   app.use(cors());
   app.use(express.json());
   app.use(
-    '/graphql',
+    CONFIG.GRAPHQL_ENDPOINT,
     expressMiddleware(server, {
       context: async () => {
         const token = process.env[`${CONFIG.DEFAULT_SCANNER.toUpperCase()}_TOKEN`];
