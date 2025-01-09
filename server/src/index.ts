@@ -10,15 +10,19 @@ import { ApiUtils } from './utils/apiUtils.js';
 import { ErrorUtils } from './utils/errorUtils.js';
 
 dotenv.config();
+interface MyContext {
+  scannerType: string;
+  token: string | undefined;
+}
 
 const createApolloServer = () => {
-  return new ApolloServer({
+  return new ApolloServer<MyContext>({
     typeDefs,
     resolvers: repoResolvers,
   });
 };
 
-const configureAppMiddlewares = (app: Express, server: ApolloServer) => {
+const configureAppMiddlewares = (app: Express, server: ApolloServer<MyContext>) => {
   app.use(cors());
   app.use(express.json());
   app.use(
