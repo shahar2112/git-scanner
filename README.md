@@ -10,8 +10,8 @@ This project is a **Git Scanner** application that allows users to fetch reposit
 ## Setup Instructions
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/username/repository-name.git
-cd repository-name
+git clone https://github.com/shahar2112/git-scanner.git
+cd git-scanner
 
 ### 2. install dependencies
 Backend:
