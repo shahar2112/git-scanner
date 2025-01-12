@@ -1,0 +1,24 @@
+client/src/configs/config.js
+# Ignore node_modules
+node_modules/
+
+# Ignore cache directories
+.cache/
+dist/
+
+# Ignore Parcel cache specifically
+.parcel-cache/
+
+# Ignore npm debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore environment variables
+.env
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+# Ignore build directory
+build/
